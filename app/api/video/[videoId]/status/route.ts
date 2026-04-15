@@ -79,49 +79,52 @@ function toStatusData(
   switch (video.status) {
     case "pending":
       return {
-        videoId:  video.id,
-        status:   "pending",
-        phase:    "Queued — waiting for AI script generation",
-        active:   true,
-        videoUrl: null,
+        videoId:    video.id,
+        status:     "pending",
+        phase:      "Waiting for AI script generation",
+        stepIndex:  0,
+        active:     true,
+        videoUrl:   null,
       };
 
     case "processing":
-      // Sub-phase: has a Runway job ID → render in progress
       if (video.rendering_job_id) {
         return {
-          videoId:  video.id,
-          status:   "processing",
-          phase:    "Rendering video",
-          active:   true,
-          videoUrl: null,
+          videoId:    video.id,
+          status:     "processing",
+          phase:      "Rendering video",
+          stepIndex:  2,
+          active:     true,
+          videoUrl:   null,
         };
       }
-      // Sub-phase: script generated, TTS + Runway submit in progress
       return {
-        videoId:  video.id,
-        status:   "processing",
-        phase:    "Generating audio & submitting render",
-        active:   true,
-        videoUrl: null,
+        videoId:    video.id,
+        status:     "processing",
+        phase:      "Generating audio & submitting render",
+        stepIndex:  1,
+        active:     true,
+        videoUrl:   null,
       };
 
     case "ready":
       return {
-        videoId:  video.id,
-        status:   "completed",
-        phase:    "Complete",
-        active:   false,
-        videoUrl: video.video_url,
+        videoId:    video.id,
+        status:     "completed",
+        phase:      "Complete",
+        stepIndex:  null,
+        active:     false,
+        videoUrl:   video.video_url,
       };
 
     case "failed":
       return {
-        videoId:  video.id,
-        status:   "failed",
-        phase:    "Failed — credit refunded",
-        active:   false,
-        videoUrl: null,
+        videoId:    video.id,
+        status:     "failed",
+        phase:      "Failed — credit refunded",
+        stepIndex:  null,
+        active:     false,
+        videoUrl:   null,
       };
   }
 }

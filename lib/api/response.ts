@@ -44,6 +44,11 @@ export interface VideoStatusData {
   videoId: string;
   status: "pending" | "processing" | "completed" | "failed";
   phase: string;
+  /**
+   * Current pipeline step index (0 = script, 1 = audio/submit, 2 = rendering).
+   * null when the job has reached a terminal state (completed or failed).
+   */
+  stepIndex: 0 | 1 | 2 | null;
   /** True while the video can still transition to a new status. */
   active: boolean;
   videoUrl: string | null;

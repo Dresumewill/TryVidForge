@@ -3,6 +3,7 @@
 import { useEffect, useReducer, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { CreditShop } from "./CreditShop";
+import { JobProgressTracker } from "./JobProgressTracker";
 import type {
   GenerateVideoResponse,
   GenerateVideoResponseData,
@@ -24,7 +25,7 @@ const PROMPT_SUGGESTIONS = [
 
 // ── State machine ─────────────────────────────────────────────────────────────
 
-type FormStatus = "idle" | "loading" | "success" | "error";
+type FormStatus = "idle" | "loading" | "tracking" | "error";
 
 interface FormState {
   prompt: string;
@@ -60,7 +61,7 @@ function formReducer(state: FormState, action: FormAction): FormState {
     case "SUBMIT":
       return { ...state, status: "loading", result: null, errorMessage: null, errorCode: null };
     case "SUCCESS":
-      return { ...state, status: "success", result: action.payload, prompt: "" };
+      return { ...state, status: "tracking", result: action.payload, prompt: "" };
     case "ERROR":
       return { ...state, status: "error", errorMessage: action.payload.message, errorCode: action.payload.code };
     case "RESET_STATUS":
@@ -115,6 +116,7 @@ export function GenerateForm({ creditBalance }: GenerateFormProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const isLoading   = state.status === "loading";
+  const isTracking  = state.status === "tracking";
   const isValid     = state.prompt.trim().length >= MIN_CHARS && state.prompt.length <= MAX_CHARS;
   const outOfCredits = creditBalance < 1;
   const isLow       = !outOfCredits && creditBalance <= LOW_CREDIT_THRESHOLD;
@@ -128,16 +130,16 @@ export function GenerateForm({ creditBalance }: GenerateFormProps) {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-dismiss generation success banner after 8 seconds
+  // Auto-dismiss error banner after 10 seconds
   useEffect(() => {
-    if (state.status !== "success") return;
-    const id = setTimeout(() => dispatch({ type: "RESET_STATUS" }), 8000);
+    if (state.status !== "error") return;
+    const id = setTimeout(() => dispatch({ type: "RESET_STATUS" }), 10_000);
     return () => clearTimeout(id);
   }, [state.status]);
 
   async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!isValid || isLoading) return;
+    if (!isValid || isLoading || isTracking) return;
 
     dispatch({ type: "SUBMIT" });
 
@@ -230,44 +232,16 @@ export function GenerateForm({ creditBalance }: GenerateFormProps) {
         </div>
 
         <div className="p-6">
-          {/* ── Generation success banner ── */}
-          {state.status === "success" && state.result && (
-            <div role="status" aria-live="polite" className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-              <div className="flex items-start gap-3">
-                {/* Animated checkmark */}
-                <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100">
-                  <svg className="h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-emerald-800">
-                    Video queued successfully!
-                  </p>
-                  <p className="mt-0.5 text-xs text-emerald-700">
-                    Processing starts in seconds. Your video will appear in the
-                    library below and update automatically as it progresses.
-                  </p>
-                  <p className="mt-2 text-xs text-emerald-600">
-                    Credits remaining:{" "}
-                    <span className="font-semibold">{state.result.creditsRemaining}</span>
-                    {" · "}Job ID:{" "}
-                    <span className="font-mono">{state.result.videoId.slice(0, 8)}…</span>
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => dispatch({ type: "RESET_STATUS" })}
-                  aria-label="Dismiss"
-                  className="ml-auto shrink-0 rounded p-0.5 text-emerald-500 transition-colors hover:bg-emerald-100"
-                >
-                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+          {/* ── Job progress tracker ── */}
+          {isTracking && state.result && (
+            <div className="mb-4">
+              <JobProgressTracker
+                videoId={state.result.videoId}
+                onDone={(finalStatus) => {
+                  dispatch({ type: "RESET_STATUS" });
+                  if (finalStatus === "completed") router.refresh();
+                }}
+              />
             </div>
           )}
 
@@ -347,7 +321,7 @@ export function GenerateForm({ creditBalance }: GenerateFormProps) {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                   </svg>
-                  Generating your script and queuing the video…
+                  Queuing your video…
                 </div>
               )}
 
@@ -362,7 +336,7 @@ export function GenerateForm({ creditBalance }: GenerateFormProps) {
                   onChange={(e) => dispatch({ type: "SET_PROMPT", payload: e.target.value })}
                   rows={5}
                   maxLength={MAX_CHARS}
-                  disabled={isLoading}
+                  disabled={isLoading || isTracking}
                   placeholder="e.g. A 30-second product demo for a mobile app — smooth animations, upbeat music, and a professional voiceover highlighting the top three features…"
                   className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50/50 px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60 transition-all"
                 />
@@ -384,7 +358,7 @@ export function GenerateForm({ creditBalance }: GenerateFormProps) {
                     <button
                       key={s}
                       type="button"
-                      disabled={isLoading}
+                      disabled={isLoading || isTracking}
                       onClick={() => { dispatch({ type: "SET_PROMPT", payload: s }); textareaRef.current?.focus(); }}
                       className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-500 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 disabled:pointer-events-none disabled:opacity-50"
                     >
@@ -409,14 +383,14 @@ export function GenerateForm({ creditBalance }: GenerateFormProps) {
                   <button
                     type="button"
                     onClick={() => dispatch({ type: "SHOW_SHOP" })}
-                    disabled={isLoading}
+                    disabled={isLoading || isTracking}
                     className={`text-xs font-medium transition-colors hover:underline disabled:pointer-events-none ${
                       isLow ? "text-amber-600 hover:text-amber-800" : "text-blue-500 hover:text-blue-700"
                     }`}
                   >
                     {isLow ? "Top up →" : "Buy credits"}
                   </button>
-                  <GenerateButton disabled={!isValid} loading={isLoading} />
+                  <GenerateButton disabled={!isValid || isTracking} loading={isLoading} />
                 </div>
               </div>
             </form>

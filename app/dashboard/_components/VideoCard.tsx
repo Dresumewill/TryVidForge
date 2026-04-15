@@ -162,6 +162,43 @@ function StepDots({ video }: { video: VideoRow }) {
   );
 }
 
+// ── Named step bar ────────────────────────────────────────────────────────────
+
+const STEP_LABELS = ["Script", "Audio", "Video"] as const;
+
+function NamedStepBar({ video }: { video: VideoRow }) {
+  const activeIndex =
+    video.status === "pending"                                    ? 0 :
+    video.status === "processing" && !video.rendering_job_id     ? 1 :
+    video.status === "processing" && !!video.rendering_job_id    ? 2 : 3;
+
+  return (
+    <div className="flex items-center gap-1">
+      {STEP_LABELS.map((label, i) => {
+        const isCompleted = i < activeIndex;
+        const isCurrent   = i === activeIndex;
+        return (
+          <div key={label} className="flex items-center gap-1">
+            {i > 0 && (
+              <div className={`h-px w-3 ${isCompleted ? "bg-blue-300" : "bg-gray-200"}`} />
+            )}
+            <span
+              className={`text-[10px] font-medium ${
+                isCompleted ? "text-blue-400" : isCurrent ? "text-blue-600" : "text-gray-300"
+              }`}
+            >
+              {label}
+              {isCurrent && (
+                <span className="ml-0.5 inline-block h-1 w-1 animate-pulse rounded-full bg-blue-500 align-middle" />
+              )}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Download button ───────────────────────────────────────────────────────────
 
 function DownloadButton({ videoId }: { videoId: string }) {
@@ -217,9 +254,12 @@ export function VideoCard({ video }: { video: VideoRow }) {
           </span>
         </div>
 
-        {/* Phase line — only for active jobs */}
+        {/* Named step bar — only for active jobs */}
         {phase.phaseLine && (
-          <p className="text-xs text-gray-400">{phase.phaseLine}</p>
+          <div className="space-y-1.5">
+            <p className="text-xs text-gray-400">{phase.phaseLine}</p>
+            <NamedStepBar video={video} />
+          </div>
         )}
 
         {/* Date + actions */}

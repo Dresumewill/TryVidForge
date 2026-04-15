@@ -7,6 +7,12 @@
   to   { transform: scaleX(0); }
 }
 
+@keyframes slide {
+  0%   { transform: translateX(-100%); }
+  50%  { transform: translateX(200%); }
+  100% { transform: translateX(-100%); }
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
