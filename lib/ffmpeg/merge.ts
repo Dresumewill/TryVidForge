@@ -1,28 +1,47 @@
 /**
- * FFmpeg video + audio merge.
+ * FFmpeg video + audio merge with optimised H.264 output.
  *
  * Downloads a Runway-rendered video and an ElevenLabs voiceover MP3,
  * merges them with FFmpeg, and returns the final MP4 as a Buffer.
  *
- * The caller is responsible for uploading the Buffer and cleaning nothing up —
- * all temp files are created and deleted inside this module.
+ * The caller is responsible for uploading the Buffer.
+ * All temp files are created and deleted inside this module.
  *
  * FFmpeg binary is provided by `ffmpeg-static` — no system FFmpeg required.
  *
- * Merge strategy:
- *   • Video stream: copy directly (no re-encode — fast, lossless quality)
- *   • Audio stream: encode to AAC 128 kbps (MP3 → AAC for MP4 container)
- *   • Duration: -shortest clips to the shorter of the two inputs
- *     (Runway video is 5–10s; voiceover may be slightly longer or shorter)
+ * Encoding strategy (chosen for file-size and load-time):
+ *
+ *   Video  — H.264 (libx264) CRF 26, preset fast
+ *     • Runway raw output is ~8–15 Mbps; CRF 26 @ 1280×768 targets ~1.5–3 Mbps
+ *       — a 70–80 % size reduction with no perceptible quality loss for clips ≤ 10 s
+ *     • profile main / level 4.0 + pix_fmt yuv420p — required for Safari / iOS
+ *       (Safari refuses yuv444 or yuv422 which some encoders emit by default)
+ *     • preset fast — ~3× faster than medium at only ~5 % larger file for short clips
+ *     • threads 0 — lets FFmpeg use all available CPU cores
+ *
+ *   Audio  — AAC 96 kbps, stereo
+ *     • Down from 128 kbps; voiceover speech is indistinguishable at 96 kbps AAC
+ *     • -ac 2 forces stereo regardless of ElevenLabs mono / stereo source variation
+ *
+ *   Metadata — stripped (-map_metadata -1, -map_chapters -1)
+ *     • Removes Runway's embedded creation date / encoder tags
+ *     • Reduces the moov atom size → slightly faster seek and parse on load
+ *
+ *   Streaming — -movflags +faststart
+ *     • Moves the moov atom to the front of the file
+ *     • Browser can begin playback before the full file is downloaded
+ *
+ *   Duration — -shortest clips to the shorter of the two inputs
+ *     • Runway video is 5–10 s; voiceover may be fractionally longer or shorter
  */
 
-import { spawn } from "child_process";
+import { spawn }                         from "child_process";
 import { createWriteStream, promises as fs } from "fs";
-import { tmpdir } from "os";
-import { join } from "path";
-import { randomUUID } from "crypto";
-import { pipeline } from "stream/promises";
-import ffmpegPath from "ffmpeg-static";
+import { tmpdir }                         from "os";
+import { join }                           from "path";
+import { randomUUID }                     from "crypto";
+import { pipeline }                       from "stream/promises";
+import ffmpegPath                         from "ffmpeg-static";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,16 +54,32 @@ export interface MergeInput {
 
 export interface MergeResult {
   /** Final merged MP4 as a Buffer, ready to upload. */
-  buffer: Buffer;
+  buffer:      Buffer;
   contentType: "video/mp4";
+  /** Encoded file size in bytes — useful for logging. */
+  sizeBytes:   number;
 }
+
+// ── FFmpeg encode settings ────────────────────────────────────────────────────
+
+/**
+ * CRF 26 hits the sweet-spot for short promo clips:
+ *   ≤ 23  high quality / larger file  (use for archival)
+ *      26  web-optimised default       ← current setting
+ *   ≥ 28  smaller / lower quality
+ *
+ * Raise to 28 to shave another ~15 % off file size if quality is acceptable.
+ */
+const VIDEO_CRF     = "26";
+const VIDEO_PRESET  = "fast";   // fast | medium | slow  (slower → smaller, longer encode)
+const AUDIO_BITRATE = "96k";    // 96k is transparent for speech; use 128k for music-heavy content
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
- * Merges a video file with a voiceover audio track.
+ * Merges a Runway video with a voiceover and returns an optimised MP4 buffer.
  *
- * @throws if FFmpeg binary is missing, download fails, or FFmpeg exits non-zero.
+ * @throws if FFmpeg binary is missing, a download fails, or FFmpeg exits non-zero.
  */
 export async function mergeVideoAudio({
   videoUrl,
@@ -72,22 +107,44 @@ export async function mergeVideoAudio({
 
     // ── 2. Run FFmpeg ────────────────────────────────────────────────────────
     await runFfmpeg([
-      "-y",                      // overwrite output without prompting
-      "-i", videoIn,             // input 0: video
-      "-i", audioIn,             // input 1: audio
-      "-map", "0:v:0",           // take video stream from input 0
-      "-map", "1:a:0",           // take audio stream from input 1
-      "-c:v", "copy",            // copy video — no re-encode
-      "-c:a", "aac",             // encode audio to AAC (required for MP4)
-      "-b:a", "128k",
-      "-movflags", "+faststart", // move moov atom to front for streaming
-      "-shortest",               // clip to shorter input
+      "-y",                        // overwrite output without prompting
+
+      // Inputs
+      "-i",       videoIn,         // input 0: Runway video
+      "-i",       audioIn,         // input 1: ElevenLabs audio
+
+      // Stream selection
+      "-map",     "0:v:0",         // video from input 0
+      "-map",     "1:a:0",         // audio from input 1
+
+      // Video encoding
+      "-c:v",     "libx264",       // re-encode to H.264 (vs -c:v copy)
+      "-crf",     VIDEO_CRF,       // quality: 26 ≈ 1.5–3 Mbps @ 1280×768
+      "-preset",  VIDEO_PRESET,    // encode speed / compression trade-off
+      "-profile:v", "main",        // H.264 Main profile — broad device support
+      "-level:v", "4.0",           // supports up to 1080p30 / 720p60
+      "-pix_fmt", "yuv420p",       // required for Safari / iOS playback
+      "-threads", "0",             // use all available CPU cores
+
+      // Audio encoding
+      "-c:a",     "aac",           // AAC is required for MP4 container
+      "-b:a",     AUDIO_BITRATE,   // 96k — transparent for voiceover
+      "-ac",      "2",             // stereo output regardless of source channel count
+
+      // Container / streaming
+      "-movflags", "+faststart",   // move moov atom to front for HTTP streaming
+      "-map_metadata", "-1",       // strip embedded metadata (creation date, encoder)
+      "-map_chapters", "-1",       // strip chapter markers
+
+      // Duration
+      "-shortest",                 // clip to shorter of video / audio
+
       output,
     ]);
 
     // ── 3. Read output into memory ───────────────────────────────────────────
     const buffer = await fs.readFile(output);
-    return { buffer, contentType: "video/mp4" };
+    return { buffer, contentType: "video/mp4", sizeBytes: buffer.byteLength };
   } finally {
     // ── 4. Clean up temp files regardless of success or failure ─────────────
     await Promise.allSettled([
@@ -110,8 +167,8 @@ async function downloadToFile(url: string, dest: string): Promise<void> {
     );
   }
 
-  // response.body is a Web ReadableStream; Node's pipeline handles it directly
-  // in Node 18+ via the WHATWG stream interop.
+  // response.body is a Web ReadableStream; Node 18+ pipeline handles it directly
+  // via WHATWG stream interop.
   await pipeline(
     response.body as unknown as NodeJS.ReadableStream,
     createWriteStream(dest)

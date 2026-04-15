@@ -337,12 +337,15 @@ async function phase2Video(
     if (video.audio_url) {
       logger.info("cron:ffmpeg:start", { videoId: video.id });
 
-      const { buffer, contentType } = await mergeVideoAudio({
+      const { buffer, contentType, sizeBytes } = await mergeVideoAudio({
         videoUrl: task.videoUrl,
         audioUrl: video.audio_url,
       });
 
-      logger.info("cron:ffmpeg:done", { videoId: video.id, bytes: buffer.byteLength });
+      logger.info("cron:ffmpeg:done", {
+        videoId: video.id,
+        sizeKb: Math.round(sizeBytes / 1024),
+      });
 
       const storagePath = `${video.id}.mp4`;
 
