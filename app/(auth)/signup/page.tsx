@@ -20,7 +20,7 @@ export default function SignupPage() {
           </p>
         </div>
 
-        <div className="rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
+        <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm sm:p-8">
           <SignupForm />
         </div>
 

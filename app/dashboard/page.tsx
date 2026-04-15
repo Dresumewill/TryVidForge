@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { CreditsRow, CreditTransactionRow, VideoRow } from "@/lib/supabase/types";
 import { Sidebar } from "./_components/Sidebar";
+import { MobileNav } from "./_components/MobileNav";
 import { StatsBar } from "./_components/StatsBar";
 import { GenerateForm } from "./_components/GenerateForm";
 import { VideoList } from "./_components/VideoList";
@@ -94,23 +95,27 @@ export default async function DashboardPage() {
   const initials = (user.email ?? "?")[0].toUpperCase();
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-svh bg-gray-50">
+      {/* Desktop sidebar — hidden below lg */}
       <Sidebar email={user.email ?? ""} initials={initials} />
 
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Top bar */}
-        <header className="flex h-16 shrink-0 items-center justify-between border-b border-gray-100 bg-white px-6">
-          <div>
+        <header className="flex h-16 shrink-0 items-center gap-3 border-b border-gray-100 bg-white px-4 sm:px-6">
+          {/* Hamburger — mobile only, rendered by MobileNav */}
+          <MobileNav email={user.email ?? ""} initials={initials} />
+
+          <div className="min-w-0 flex-1">
             <h1 className="text-base font-semibold text-gray-900">Dashboard</h1>
-            <p className="text-xs text-gray-400">
+            <p className="truncate text-xs text-gray-400">
               Welcome back, {user.email?.split("@")[0]}
             </p>
           </div>
         </header>
 
         {/* Scrollable content */}
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="mx-auto max-w-4xl space-y-6">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+          <div className="mx-auto max-w-4xl space-y-4 sm:space-y-6">
             <PaymentSuccessToast />
             <StatsBar
               videoCount={videoCount}

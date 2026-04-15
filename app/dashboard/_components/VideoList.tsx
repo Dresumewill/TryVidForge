@@ -85,7 +85,7 @@ export function VideoList({ videos, totalCount }: VideoListProps) {
       {videos.length === 0 ? (
         <EmptyState />
       ) : (
-        <div className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 sm:p-6 lg:grid-cols-3">
           {videos.map((video) => (
             <VideoCard key={video.id} video={video} />
           ))}

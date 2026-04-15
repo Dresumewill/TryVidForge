@@ -18,7 +18,7 @@ interface PricingCardsProps {
 
 function FreePlanCard({ isLoggedIn }: { isLoggedIn: boolean }) {
   return (
-    <div className="relative flex flex-col rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
+    <div className="relative flex flex-col rounded-2xl border border-gray-100 bg-white p-6 shadow-sm sm:p-8">
       <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
         Free
       </p>
@@ -83,7 +83,7 @@ function PaidPlanCard({
 
   return (
     <div
-      className={`relative flex flex-col rounded-2xl border p-8 transition-shadow hover:shadow-md ${
+      className={`relative flex flex-col rounded-2xl border p-6 transition-shadow hover:shadow-md sm:p-8 ${
         isFeatured
           ? "border-blue-200 bg-gradient-to-b from-blue-50/70 to-white shadow-md ring-1 ring-blue-100"
           : "border-gray-100 bg-white shadow-sm"
@@ -245,7 +245,7 @@ export function PricingCards({ packs, userId }: PricingCardsProps) {
       )}
 
       {/* Cards grid */}
-      <div className="grid gap-6 sm:grid-cols-3">
+      <div className="grid gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
         <FreePlanCard isLoggedIn={!!userId} />
         {packs.map((pack) => (
           <PaidPlanCard

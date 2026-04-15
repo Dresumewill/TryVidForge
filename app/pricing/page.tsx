@@ -23,7 +23,7 @@ export default async function PricingPage() {
   return (
     <div className="flex min-h-screen flex-col bg-white">
       {/* ── Nav ─────────────────────────────────────────────────────────── */}
-      <nav className="border-b border-gray-100 px-6 py-4">
+      <nav className="border-b border-gray-100 px-4 py-4 sm:px-6">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
           <Link
             href="/"
@@ -67,11 +67,11 @@ export default async function PricingPage() {
 
       <main className="flex-1">
         {/* ── Hero ──────────────────────────────────────────────────────── */}
-        <section className="px-6 pb-10 pt-20 text-center">
+        <section className="px-4 pb-10 pt-16 text-center sm:px-6 sm:pt-20">
           <span className="inline-block rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600">
             Simple pricing
           </span>
-          <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl">
+          <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl lg:text-5xl">
             Pay once.{" "}
             <span className="text-blue-600">Create whenever.</span>
           </h1>
@@ -82,14 +82,14 @@ export default async function PricingPage() {
         </section>
 
         {/* ── Pricing cards ─────────────────────────────────────────────── */}
-        <section className="mx-auto max-w-5xl px-6 pb-20">
+        <section className="mx-auto max-w-5xl px-4 pb-16 sm:px-6 sm:pb-20">
           <PricingCards packs={packs} userId={user?.id ?? null} />
         </section>
 
         {/* ── "How credits work" ────────────────────────────────────────── */}
-        <section className="border-t border-gray-100 bg-gray-50 px-6 py-20">
+        <section className="border-t border-gray-100 bg-gray-50 px-4 py-16 sm:px-6 sm:py-20">
           <div className="mx-auto max-w-4xl">
-            <h2 className="mb-12 text-center text-2xl font-bold text-gray-900">
+            <h2 className="mb-10 text-center text-2xl font-bold text-gray-900 sm:mb-12">
               How credits work
             </h2>
             <div className="grid gap-6 sm:grid-cols-3">
@@ -109,13 +109,14 @@ export default async function PricingPage() {
         </section>
 
         {/* ── Value comparison ──────────────────────────────────────────── */}
-        <section className="px-6 py-20">
+        <section className="px-4 py-16 sm:px-6 sm:py-20">
           <div className="mx-auto max-w-3xl">
             <h2 className="mb-8 text-center text-2xl font-bold text-gray-900">
               Compare packs
             </h2>
-            <div className="overflow-hidden rounded-2xl border border-gray-100 shadow-sm">
-              <table className="w-full text-sm">
+            {/* overflow-x-auto lets the table scroll horizontally on narrow screens */}
+            <div className="overflow-x-auto rounded-2xl border border-gray-100 shadow-sm">
+              <table className="w-full min-w-[480px] text-sm">
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50 text-left">
                     <th className="px-6 py-3 font-semibold text-gray-600">
@@ -191,7 +192,7 @@ export default async function PricingPage() {
         </section>
 
         {/* ── FAQ ───────────────────────────────────────────────────────── */}
-        <section className="border-t border-gray-100 bg-gray-50 px-6 py-20">
+        <section className="border-t border-gray-100 bg-gray-50 px-4 py-16 sm:px-6 sm:py-20">
           <div className="mx-auto max-w-3xl">
             <h2 className="mb-10 text-center text-2xl font-bold text-gray-900">
               Frequently asked questions
@@ -213,7 +214,7 @@ export default async function PricingPage() {
         </section>
 
         {/* ── Bottom CTA ────────────────────────────────────────────────── */}
-        <section className="px-6 py-24 text-center">
+        <section className="px-4 py-16 text-center sm:px-6 sm:py-24">
           <h2 className="text-3xl font-bold text-gray-900">
             Ready to start creating?
           </h2>
@@ -239,7 +240,7 @@ export default async function PricingPage() {
       </main>
 
       {/* ── Footer ────────────────────────────────────────────────────────── */}
-      <footer className="border-t border-gray-100 px-6 py-8 text-center text-sm text-gray-400">
+      <footer className="border-t border-gray-100 px-4 py-8 text-center text-sm text-gray-400 sm:px-6">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
           <span className="font-semibold text-gray-600">VidForge</span>
           <div className="flex gap-6">

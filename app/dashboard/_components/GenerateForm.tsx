@@ -82,7 +82,7 @@ function GenerateButton({ disabled, loading }: { disabled: boolean; loading: boo
     <button
       type="submit"
       disabled={disabled || loading}
-      className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
+      className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none"
     >
       {loading ? (
         <>
@@ -231,7 +231,7 @@ export function GenerateForm({ creditBalance }: GenerateFormProps) {
           </div>
         </div>
 
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {/* ── Job progress tracker ── */}
           {isTracking && state.result && (
             <div className="mb-4">
@@ -369,9 +369,9 @@ export function GenerateForm({ creditBalance }: GenerateFormProps) {
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between border-t border-gray-100 pt-4">
+              <div className="flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className={`flex items-center gap-1.5 text-xs ${isLow ? "text-amber-600" : "text-gray-400"}`}>
-                  <svg className={`h-3.5 w-3.5 ${isLow ? "text-amber-500" : "text-blue-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                  <svg className={`h-3.5 w-3.5 shrink-0 ${isLow ? "text-amber-500" : "text-blue-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                   {isLow
@@ -379,7 +379,7 @@ export function GenerateForm({ creditBalance }: GenerateFormProps) {
                     : "Costs 1 credit · ~2 min to generate"}
                 </p>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center justify-between gap-3 sm:justify-end">
                   <button
                     type="button"
                     onClick={() => dispatch({ type: "SHOW_SHOP" })}

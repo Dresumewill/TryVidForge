@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Input } from "@/components/ui/Input";
 import { LoginForm } from "./LoginForm";
 
 export const metadata: Metadata = { title: "Log in" };
@@ -27,7 +26,7 @@ export default async function LoginPage({
           </p>
         </div>
 
-        <div className="rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
+        <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm sm:p-8">
           <LoginForm next={next} />
         </div>
 

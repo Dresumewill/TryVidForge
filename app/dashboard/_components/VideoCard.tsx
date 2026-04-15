@@ -206,7 +206,7 @@ function DownloadButton({ videoId }: { videoId: string }) {
     <a
       href={`/api/download/${videoId}`}
       download
-      className="flex items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-gray-700 active:scale-95"
+      className="flex items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-gray-700 active:scale-95"
       title="Download MP4"
     >
       <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
