@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { Errors } from "@/lib/api/response";
+import { rateLimit } from "@/lib/api/rate-limit";
 
 /**
  * GET /api/download/[videoId]
@@ -29,6 +30,12 @@ export async function GET(
 
   if (authError || !user) {
     return Errors.unauthorized();
+  }
+
+  // ── Rate limit — 20 downloads per user per minute ────────────────────────
+  const rl = rateLimit(`dl:${user.id}`, 20, 60_000);
+  if (!rl.allowed) {
+    return Errors.tooManyRequests(rl.retryAfterSec);
   }
 
   // ── 2. Resolve params (Next.js 15: params is a Promise) ──────────────────

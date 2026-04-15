@@ -32,7 +32,7 @@ import { NextResponse } from "next/server";
  * Protected by CRON_SECRET (Vercel sets the Authorization header automatically).
  */
 
-const CRON_SECRET = process.env.CRON_SECRET;
+const CRON_SECRET = process.env.CRON_SECRET ?? "";
 /** Max videos to process per phase per cron invocation */
 const BATCH_SIZE = 5;
 /** Skip videos queued less than this long ago — lets DB transactions commit */
@@ -42,9 +42,16 @@ const PHASE1_MIN_AGE_MS = 30_000;
 // ── Route handler ─────────────────────────────────────────────────────────────
 
 export async function GET(req: Request) {
+  // Fail closed: if CRON_SECRET is not configured, every request is rejected.
+  // A missing secret is a misconfiguration — it must never silently allow access.
+  if (!CRON_SECRET) {
+    logger.error("cron:CRON_SECRET not set — blocking request");
+    return new NextResponse("Cron secret not configured.", { status: 503 });
+  }
+
   const authHeader = req.headers.get("authorization");
-  if (CRON_SECRET && authHeader !== `Bearer ${CRON_SECRET}`) {
-    logger.warn("Cron request rejected — invalid secret");
+  if (authHeader !== `Bearer ${CRON_SECRET}`) {
+    logger.warn("cron:rejected — invalid secret");
     return new NextResponse("Unauthorized", { status: 401 });
   }
 

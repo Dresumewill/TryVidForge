@@ -2,8 +2,11 @@ import { createClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe/client";
 import { CREDIT_PACKS } from "@/lib/stripe/products";
 import { apiSuccess, Errors } from "@/lib/api/response";
+import { rateLimit } from "@/lib/api/rate-limit";
 import { logger } from "@/lib/api/logger";
 import { z } from "zod";
+
+const ALLOWED_ORIGIN = process.env.NEXT_PUBLIC_APP_URL ?? "";
 
 const bodySchema = z.object({
   packId: z.string({ error: "packId is required." }),
@@ -34,6 +37,20 @@ export async function POST(req: Request) {
     return Errors.unauthorized();
   }
 
+  // ── Rate limit — 5 checkout sessions per user per minute ────────────────
+  const rl = rateLimit(`checkout:${user.id}`, 5, 60_000);
+  if (!rl.allowed) {
+    logger.warn("checkout:rate-limited", { userId: user.id });
+    return Errors.tooManyRequests(rl.retryAfterSec);
+  }
+
+  // ── Validate origin to prevent open redirects ────────────────────────────
+  const origin = req.headers.get("origin") ?? "";
+  if (ALLOWED_ORIGIN && origin !== ALLOWED_ORIGIN) {
+    logger.warn("checkout:invalid-origin", { origin, expected: ALLOWED_ORIGIN });
+    return Errors.forbidden();
+  }
+
   // ── Parse body ──────────────────────────────────────────────────────────
   let body: unknown;
   try {
@@ -59,7 +76,7 @@ export async function POST(req: Request) {
   }
 
   // ── Create Stripe Checkout session ──────────────────────────────────────
-  const origin = req.headers.get("origin") ?? process.env.NEXT_PUBLIC_APP_URL ?? "";
+  // `origin` is already validated and declared above.
 
   let session;
   try {

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { apiSuccess, Errors } from "@/lib/api/response";
 import type { VideoStatusData } from "@/lib/api/response";
+import { rateLimit } from "@/lib/api/rate-limit";
 import { logger } from "@/lib/api/logger";
 import type { VideoRow } from "@/lib/supabase/types";
 
@@ -19,7 +20,7 @@ import type { VideoRow } from "@/lib/supabase/types";
  *   failed     → Pipeline failed; credit refunded
  */
 export async function GET(
-  req: Request,
+  _req: Request,
   { params }: { params: Promise<{ videoId: string }> }
 ) {
   const start = Date.now();
@@ -33,6 +34,12 @@ export async function GET(
 
   if (authError || !user) {
     return Errors.unauthorized();
+  }
+
+  // ── Rate limit — 60 polls per user per minute (1/s headroom for 3-s interval) ─
+  const rl = rateLimit(`status:${user.id}`, 60, 60_000);
+  if (!rl.allowed) {
+    return Errors.tooManyRequests(rl.retryAfterSec);
   }
 
   const { videoId } = await params;

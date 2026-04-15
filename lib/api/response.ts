@@ -91,8 +91,11 @@ export const Errors = {
   conflict: (message: string) =>
     apiError("conflict", message, 409),
 
-  tooManyRequests: () =>
-    apiError("too_many_requests", "Rate limit exceeded. Please slow down.", 429),
+  tooManyRequests: (retryAfterSec = 60) =>
+    NextResponse.json(
+      { success: false, error: { code: "too_many_requests", message: "Rate limit exceeded. Please slow down." } },
+      { status: 429, headers: { "Retry-After": String(retryAfterSec) } }
+    ) as NextResponse<ApiErrorResponse>,
 
   internal: (message = "An unexpected error occurred.") =>
     apiError("internal_server_error", message, 500),

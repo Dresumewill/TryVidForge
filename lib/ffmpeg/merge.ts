@@ -99,7 +99,11 @@ export async function mergeVideoAudio({
   const output  = join(tmp, `${id}-merged.mp4`);
 
   try {
-    // ── 1. Download inputs in parallel ──────────────────────────────────────
+    // ── 1. Validate URLs before touching the network ────────────────────────
+    assertSafeUrl(videoUrl, "video");
+    assertSafeUrl(audioUrl, "audio");
+
+    // ── 2. Download inputs in parallel ──────────────────────────────────────
     await Promise.all([
       downloadToFile(videoUrl, videoIn),
       downloadToFile(audioUrl, audioIn),
@@ -156,6 +160,51 @@ export async function mergeVideoAudio({
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Allowlisted hostname suffixes for trusted download sources.
+ *
+ * Audio always comes from our own Supabase project (supabase.co).
+ * Video comes from Runway's CDN — they may use several domains, so we
+ * require HTTPS and block private/loopback addresses instead of hard-coding
+ * every possible Runway CDN host.
+ */
+const SUPABASE_HOST_SUFFIX = process.env.NEXT_PUBLIC_SUPABASE_URL
+  ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
+  : ".supabase.co";
+
+/** Patterns that must never be fetched (SSRF guard). */
+const BLOCKED_HOSTNAMES = /^(localhost|127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|::1|0\.0\.0\.0)/;
+
+/**
+ * Validates that a URL is safe to fetch:
+ *   - Must use HTTPS
+ *   - Must not resolve to a private / loopback address
+ *   - Audio URLs must come from the project's own Supabase host
+ */
+function assertSafeUrl(url: string, kind: "video" | "audio"): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error(`[ffmpeg] Invalid ${kind} URL: ${url}`);
+  }
+
+  if (parsed.protocol !== "https:") {
+    throw new Error(`[ffmpeg] ${kind} URL must use HTTPS (got ${parsed.protocol})`);
+  }
+
+  if (BLOCKED_HOSTNAMES.test(parsed.hostname)) {
+    throw new Error(`[ffmpeg] ${kind} URL hostname is not allowed: ${parsed.hostname}`);
+  }
+
+  if (kind === "audio" && !parsed.hostname.endsWith(SUPABASE_HOST_SUFFIX)) {
+    throw new Error(
+      `[ffmpeg] Audio URL must come from the Supabase project host ` +
+      `(got ${parsed.hostname}, expected suffix ${SUPABASE_HOST_SUFFIX})`
+    );
+  }
+}
 
 /** Downloads a URL to a local file path using Node streams. */
 async function downloadToFile(url: string, dest: string): Promise<void> {

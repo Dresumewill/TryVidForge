@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { generateVideoSchema } from "@/lib/video/schema";
 import { runVideoGenerationPipeline } from "@/lib/video/pipeline";
 import { apiSuccess, apiError, Errors } from "@/lib/api/response";
+import { rateLimit } from "@/lib/api/rate-limit";
 import { logger } from "@/lib/api/logger";
 
 /**
@@ -33,7 +34,14 @@ export async function POST(req: Request) {
     return Errors.unauthorized();
   }
 
-  // ── 2. Parse request body ──────────────────────────────────────────────────
+  // ── 2. Rate limit — 5 generations per user per minute ─────────────────────
+  const rl = rateLimit(`gen:${user.id}`, 5, 60_000);
+  if (!rl.allowed) {
+    logger.warn("generate-video:rate-limited", { userId: user.id });
+    return Errors.tooManyRequests(rl.retryAfterSec);
+  }
+
+  // ── 3. Parse request body ──────────────────────────────────────────────────
   let body: unknown;
   try {
     body = await req.json();
@@ -41,7 +49,7 @@ export async function POST(req: Request) {
     return Errors.badRequest("Request body must be valid JSON.");
   }
 
-  // ── 3. Validate input ──────────────────────────────────────────────────────
+  // ── 4. Validate input ──────────────────────────────────────────────────────
   const parsed = generateVideoSchema.safeParse(body);
 
   if (!parsed.success) {
@@ -55,7 +63,7 @@ export async function POST(req: Request) {
 
   const { prompt } = parsed.data;
 
-  // ── 4. Run pipeline — credit check + DB insert only ────────────────────────
+  // ── 5. Run pipeline — credit check + DB insert only ────────────────────────
   logger.info("pipeline:start", { userId: user.id, promptLength: prompt.length });
 
   let result;
@@ -67,7 +75,7 @@ export async function POST(req: Request) {
     return Errors.internal("Video generation failed unexpectedly. Please try again.");
   }
 
-  // ── 5. Map pipeline result to HTTP response ────────────────────────────────
+  // ── 6. Map pipeline result to HTTP response ────────────────────────────────
   if (!result.ok) {
     const statusMap: Record<string, number> = {
       insufficient_credits: 402,
@@ -78,12 +86,15 @@ export async function POST(req: Request) {
     const status = statusMap[result.code] ?? 500;
     logger.response(req, status, Date.now() - start, {
       userId: user.id,
-      errorCode: result.code,
+      errorCode: result.code,   // internal code — logged but not sent to client
     });
+    // Map internal codes to external ones — don't leak implementation details.
+    // "insufficient_credits" stays exposed intentionally: the UI uses it to
+    // show the credit shop rather than a generic error banner.
     return apiError(result.code, result.message, status);
   }
 
-  // ── 6. Respond with job ID ─────────────────────────────────────────────────
+  // ── 7. Respond with job ID ─────────────────────────────────────────────────
   logger.response(req, 201, Date.now() - start, {
     userId:  user.id,
     videoId: result.videoId,
