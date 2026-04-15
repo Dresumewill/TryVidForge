@@ -4,6 +4,7 @@ import { runVideoGenerationPipeline } from "@/lib/video/pipeline";
 import { apiSuccess, apiError, Errors } from "@/lib/api/response";
 import { rateLimit } from "@/lib/api/rate-limit";
 import { logger } from "@/lib/api/logger";
+import { track } from "@/lib/analytics/track";
 
 /**
  * POST /api/generate-video
@@ -99,6 +100,11 @@ export async function POST(req: Request) {
     userId:  user.id,
     videoId: result.videoId,
     status:  result.status,
+  });
+
+  void track("video.queued", {
+    userId:     user.id,
+    properties: { videoId: result.videoId },
   });
 
   return apiSuccess(

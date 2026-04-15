@@ -9,6 +9,7 @@ import { GenerateForm } from "./_components/GenerateForm";
 import { VideoList } from "./_components/VideoList";
 import { ActivityFeed } from "./_components/ActivityFeed";
 import { PaymentSuccessToast } from "./_components/PaymentSuccessToast";
+import { AnalyticsPanel } from "./_components/AnalyticsPanel";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -125,6 +126,8 @@ export default async function DashboardPage() {
             />
 
             <GenerateForm creditBalance={creditBalance} />
+
+            <AnalyticsPanel userId={user.id} />
 
             {/* Two-column layout on large screens: video list + activity feed */}
             <div className="grid gap-6 lg:grid-cols-3">

@@ -4,6 +4,7 @@ import { textToSpeech } from "@/lib/elevenlabs/client";
 import { submitTextToVideo, pollTask } from "@/lib/runway/client";
 import { mergeVideoAudio } from "@/lib/ffmpeg/merge";
 import { logger } from "@/lib/api/logger";
+import { track } from "@/lib/analytics/track";
 import { NextResponse } from "next/server";
 
 /**
@@ -157,6 +158,11 @@ async function phase0Video(
       p_reason:   "ai_error_refund",
     });
 
+    void track("video.failed", {
+      userId:     video.user_id,
+      properties: { videoId: video.id, phase: 0 },
+    });
+
     throw err;
   }
 }
@@ -264,6 +270,11 @@ async function phase1Video(
       p_user_id:  video.user_id,
       p_video_id: video.id,
       p_reason:   "phase1_error_refund",
+    });
+
+    void track("video.failed", {
+      userId:     video.user_id,
+      properties: { videoId: video.id, phase: 1 },
     });
 
     throw err;
@@ -387,6 +398,11 @@ async function phase2Video(
       .update({ video_url: finalVideoUrl, status: "ready" })
       .eq("id", video.id);
 
+    void track("video.completed", {
+      userId:     video.user_id,
+      properties: { videoId: video.id },
+    });
+
     logger.info("cron:phase2:ready", { videoId: video.id });
     return "succeeded";
   }
@@ -404,6 +420,11 @@ async function phase2Video(
       p_user_id:  video.user_id,
       p_video_id: video.id,
       p_reason:   "rendering_failed_refund",
+    });
+
+    void track("video.failed", {
+      userId:     video.user_id,
+      properties: { videoId: video.id, phase: 2, runwayStatus: task.status },
     });
 
     return "failed";

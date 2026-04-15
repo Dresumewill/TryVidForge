@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { track } from "@/lib/analytics/track";
 
 export async function signup(_: unknown, formData: FormData) {
   const supabase = await createClient();
@@ -36,6 +37,9 @@ export async function signup(_: unknown, formData: FormData) {
   if (!data.session) {
     redirect(`/signup/confirm?email=${encodeURIComponent(email)}`);
   }
+
+  // Fire analytics before redirect — fire-and-forget, never blocks.
+  void track("user.signup", { userId: data.user?.id });
 
   // Email confirmation is disabled in this project — user is signed in immediately.
   revalidatePath("/", "layout");
