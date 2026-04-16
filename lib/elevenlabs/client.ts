@@ -46,6 +46,7 @@ export async function textToSpeech({ text }: TTSOptions): Promise<TTSResult> {
   const response = await fetch(
     `${ELEVENLABS_BASE}/text-to-speech/${voiceId}`,
     {
+      signal: AbortSignal.timeout(60_000),
       method: "POST",
       headers: {
         "xi-api-key": apiKey,

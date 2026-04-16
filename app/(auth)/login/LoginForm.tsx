@@ -50,7 +50,7 @@ export function LoginForm({ next }: LoginFormProps) {
           required
         />
         <div className="text-right">
-          <Link href="#" className="text-xs text-blue-600 hover:underline">
+          <Link href="/forgot-password" className="text-xs text-blue-600 hover:underline">
             Forgot password?
           </Link>
         </div>

@@ -7,9 +7,9 @@ export const metadata: Metadata = { title: "Log in" };
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; error?: string }>;
 }) {
-  const { next } = await searchParams;
+  const { next, error } = await searchParams;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
@@ -25,6 +25,18 @@ export default async function LoginPage({
             Log in to your account to continue
           </p>
         </div>
+
+        {error === "link_expired" && (
+          <div
+            role="alert"
+            className="mb-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-700"
+          >
+            That link has expired or already been used.{" "}
+            <Link href="/forgot-password" className="font-medium underline">
+              Request a new one.
+            </Link>
+          </div>
+        )}
 
         <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm sm:p-8">
           <LoginForm next={next} />

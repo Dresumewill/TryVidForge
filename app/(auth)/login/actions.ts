@@ -25,8 +25,11 @@ export async function login(_: unknown, formData: FormData) {
   }
 
   revalidatePath("/", "layout");
-  // Only allow relative redirects to prevent open-redirect attacks.
-  const safeNext = next.startsWith("/") ? next : "/dashboard";
+  // Allow only same-origin relative paths.
+  // Reject protocol-relative URLs like //evil.com which start with "/" but
+  // are treated as absolute by the browser.
+  const safeNext =
+    next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
   redirect(safeNext);
 }
 

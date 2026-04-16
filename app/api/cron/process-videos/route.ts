@@ -152,11 +152,14 @@ async function phase0Video(
 
     await db.from("videos").update({ status: "failed" }).eq("id", video.id);
 
-    await db.rpc("refund_credit", {
+    const { error: refundErr0 } = await db.rpc("refund_credit", {
       p_user_id:  video.user_id,
       p_video_id: video.id,
       p_reason:   "ai_error_refund",
     });
+    if (refundErr0) {
+      logger.error("cron:phase0:refund-failed", { videoId: video.id, error: refundErr0.message });
+    }
 
     void track("video.failed", {
       userId:     video.user_id,
@@ -266,11 +269,14 @@ async function phase1Video(
 
     await db.from("videos").update({ status: "failed" }).eq("id", video.id);
 
-    await db.rpc("refund_credit", {
+    const { error: refundErr1 } = await db.rpc("refund_credit", {
       p_user_id:  video.user_id,
       p_video_id: video.id,
       p_reason:   "phase1_error_refund",
     });
+    if (refundErr1) {
+      logger.error("cron:phase1:refund-failed", { videoId: video.id, error: refundErr1.message });
+    }
 
     void track("video.failed", {
       userId:     video.user_id,
@@ -416,11 +422,14 @@ async function phase2Video(
 
     await db.from("videos").update({ status: "failed" }).eq("id", video.id);
 
-    await db.rpc("refund_credit", {
+    const { error: refundErr2 } = await db.rpc("refund_credit", {
       p_user_id:  video.user_id,
       p_video_id: video.id,
       p_reason:   "rendering_failed_refund",
     });
+    if (refundErr2) {
+      logger.error("cron:phase2:refund-failed", { videoId: video.id, error: refundErr2.message });
+    }
 
     void track("video.failed", {
       userId:     video.user_id,

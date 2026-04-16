@@ -7,6 +7,8 @@ import type { VideoStatusData } from "@/lib/api/response";
 
 const POLL_INTERVAL_MS  = 3_000;
 const AUTO_DISMISS_MS   = 7_000;
+/** Stop polling after this many consecutive errors to avoid hammering the server. */
+const MAX_ERRORS        = 10;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -158,18 +160,52 @@ export function JobProgressTracker({ videoId, onDone }: JobProgressTrackerProps)
     let stopped = false;
     doneRef.current = false;
 
+    // Tracks ticks to skip (used for 429 Retry-After back-off).
+    let skipTicks = 0;
+    // Tracks consecutive failures; polling halts at MAX_ERRORS.
+    let errorCount = 0;
+
     async function poll() {
-      if (doneRef.current) return;
+      if (doneRef.current || stopped) return;
+
+      // Honour Retry-After back-off from a previous 429 response.
+      if (skipTicks > 0) {
+        skipTicks--;
+        return;
+      }
+
       try {
         const res  = await fetch(`/api/video/${videoId}/status`);
-        const json = await res.json();
 
         if (stopped) return;
 
-        if (!res.ok || !json.success) {
-          setTracker((prev) => ({ ...prev, error: "Could not fetch status." }));
+        // Rate-limited — back off for however long the server asks.
+        if (res.status === 429) {
+          const retryAfter = Number(res.headers.get("Retry-After") ?? "10");
+          skipTicks = Math.ceil((retryAfter * 1000) / POLL_INTERVAL_MS);
+          setTracker((prev) => ({ ...prev, error: "Rate limited — retrying shortly…" }));
           return;
         }
+
+        const json = await res.json();
+
+        if (!res.ok || !json.success) {
+          errorCount++;
+          if (errorCount >= MAX_ERRORS) {
+            doneRef.current = true;
+            setTracker((prev) => ({
+              ...prev,
+              done: true,
+              error: "Could not reach the server. Please refresh the page.",
+            }));
+          } else {
+            setTracker((prev) => ({ ...prev, error: "Could not fetch status — retrying…" }));
+          }
+          return;
+        }
+
+        // Successful response — reset the error counter.
+        errorCount = 0;
 
         const data: VideoStatusData = json.data;
         const isDone = data.status === "completed" || data.status === "failed";
@@ -185,7 +221,17 @@ export function JobProgressTracker({ videoId, onDone }: JobProgressTrackerProps)
         }
       } catch {
         if (!stopped) {
-          setTracker((prev) => ({ ...prev, error: "Network error — retrying…" }));
+          errorCount++;
+          if (errorCount >= MAX_ERRORS) {
+            doneRef.current = true;
+            setTracker((prev) => ({
+              ...prev,
+              done: true,
+              error: "Connection lost. Please refresh the page.",
+            }));
+          } else {
+            setTracker((prev) => ({ ...prev, error: "Network error — retrying…" }));
+          }
         }
       }
     }

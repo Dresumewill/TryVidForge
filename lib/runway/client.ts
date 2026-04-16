@@ -67,11 +67,15 @@ function runwayHeaders(apiKey: string): Record<string, string> {
 export async function submitTextToVideo(prompt: string): Promise<RunwaySubmitResult> {
   const apiKey = getApiKey();
 
-  const model    = process.env.RUNWAY_MODEL    ?? "gen4_turbo";
-  const duration = Number(process.env.RUNWAY_DURATION ?? "5") as 5 | 10;
-  const ratio    = process.env.RUNWAY_RATIO    ?? "1280:768";
+  const model = process.env.RUNWAY_MODEL ?? "gen4_turbo";
+  const ratio = process.env.RUNWAY_RATIO ?? "1280:768";
+
+  // Validate duration — Runway only accepts 5 or 10; fall back to 5 on bad config.
+  const rawDuration = Number(process.env.RUNWAY_DURATION ?? "5");
+  const duration: 5 | 10 = rawDuration === 10 ? 10 : 5;
 
   const response = await fetch(`${RUNWAY_BASE}/text_to_video`, {
+    signal: AbortSignal.timeout(30_000),
     method: "POST",
     headers: runwayHeaders(apiKey),
     body: JSON.stringify({
@@ -109,6 +113,7 @@ export async function pollTask(taskId: string): Promise<RunwayTaskResult> {
   const apiKey = getApiKey();
 
   const response = await fetch(`${RUNWAY_BASE}/tasks/${taskId}`, {
+    signal: AbortSignal.timeout(30_000),
     method: "GET",
     headers: runwayHeaders(apiKey),
   });

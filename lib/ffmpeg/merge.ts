@@ -208,7 +208,7 @@ function assertSafeUrl(url: string, kind: "video" | "audio"): void {
 
 /** Downloads a URL to a local file path using Node streams. */
 async function downloadToFile(url: string, dest: string): Promise<void> {
-  const response = await fetch(url);
+  const response = await fetch(url, { signal: AbortSignal.timeout(60_000) });
 
   if (!response.ok || !response.body) {
     throw new Error(
